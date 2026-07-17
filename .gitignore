@@ -8,3 +8,4 @@ dist/
 build/
 .next/
 *.tsbuildinfo
+node_modules
