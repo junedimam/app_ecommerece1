@@ -1,28 +1,32 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const Product = require('./models/Product');
 require('dotenv').config();
 
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 5002;
-// Points to your local Mongo or your K8s service name. Separated logically by database path.
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/flixstore_products';
+// Endpoint to add a fresh item with price and image path assigned
+app.post('/api/products', async (req, res) => {
+  try {
+    const { name, description, price, imageUrl, stock } = req.body;
+    
+    const newProduct = new Product({
+      name,
+      description,
+      price,
+      imageUrl,
+      stock
+    });
 
-mongoose.connect(MONGO_URI)
-  .then(() => console.log('🟢 Product Catalog connected to MongoDB'))
-  .catch(err => console.error('🔴 DB Connection failed:', err.message));
-
-// Schema definition
-const ProductSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  price: { type: Number, required: true },
-  description: String
+    const savedProduct = await newProduct.save();
+    res.status(201).json(savedProduct);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
-const Product = mongoose.model('Product', ProductSchema);
-
-// GET /api/products - Retrieve catalog
+// Endpoint to fetch all items for your storefront catalog
 app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find();
@@ -32,15 +36,18 @@ app.get('/api/products', async (req, res) => {
   }
 });
 
-// POST /api/products - Add product (seed database)
-app.post('/api/products', async (req, res) => {
-  try {
-    const product = new Product(req.body);
-    await product.save();
-    res.status(201).json(product);
-  } catch (err) {
-    res.status(400).json({ error: err.message });
-  }
-});
+app.get('/health', (req, res) => res.json({ status: 'healthy' }));
 
-app.listen(PORT, () => console.log(`🚀 Product Service running on port ${PORT}`));
+// Execution safety block for native run vs test runner isolation
+if (require.main === module) {
+  const PORT = process.env.PORT || 5002;
+  const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/flixstore_products';
+
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log('🟢 Product Catalog connected to MongoDB'))
+    .catch(err => console.error('🔴 DB Connection failed:', err.message));
+
+  app.listen(PORT, () => console.log(`🚀 Product Catalog active on port ${PORT}`));
+}
+
+module.exports = app;

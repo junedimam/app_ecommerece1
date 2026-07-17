@@ -1,0 +1,71 @@
+version: '3.8'
+
+networks:
+  flixstore-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: flixstore_db
+    networks:
+      - flixstore-network
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth_service
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb://mongodb:27017/flixstore_auth
+    networks:
+      - flixstore-network
+    depends_on:
+      - mongodb
+
+  product-catalog:
+    build:
+      context: ./services/product-catalog
+      dockerfile: Dockerfile
+    container_name: product_catalog
+    environment:
+      - PORT=5002
+      - MONGO_URI=mongodb://mongodb:27017/flixstore_catalog
+    networks:
+      - flixstore-network
+    depends_on:
+      - mongodb
+
+  cart-service:
+    build:
+      context: ./services/cart-service
+      dockerfile: Dockerfile
+    container_name: cart_service
+    environment:
+      - PORT=5003
+      - MONGO_URI=mongodb://mongodb:27017/flixstore_cart
+    networks:
+      - flixstore-network
+    depends_on:
+      - mongodb
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: payment_service
+    environment:
+      - PORT=5005
+      - MONGO_URI=mongodb://mongodb:27017/flixstore_payment
+    networks:
+      - flixstore-network
+    depends_on:
+      - mongodb
