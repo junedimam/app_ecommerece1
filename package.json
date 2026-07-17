@@ -1,0 +1,24 @@
+{
+  "name": "app_ecommerce",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/junedimam/ecommerce_app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/junedimam/ecommerce_app/issues"
+  },
+  "homepage": "https://github.com/junedimam/ecommerce_app#readme",
+  "devDependencies": {
+    "concurrently": "^10.0.3"
+  }
+}
