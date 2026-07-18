@@ -151,11 +151,11 @@ module "eks" {
   # Self-managed node group
   eks_managed_node_groups = {
     flixstore_nodes = {
-      desired_size = 2
-      min_size     = 2
-      max_size     = 3
+      desired_size = 1
+      min_size     = 1
+      max_size     = 1
 
-      instance_types = ["t3.small"]
+      instance_types = ["t2.micro"]
 
       subnet_ids = module.vpc.private_subnets
     }
