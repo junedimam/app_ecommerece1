@@ -5,6 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  workflow_dispatch: {}
 
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
@@ -151,11 +152,11 @@ jobs:
         kubectl set image deployment/payment-service payment-service=$ECR_REGISTRY/flixstore-payment-service:${{ github.sha }} -n flixstore
         kubectl set image deployment/frontend frontend=$ECR_REGISTRY/flixstore-frontend:${{ github.sha }} -n flixstore
 
-        kubectl rollout status deployment/auth-service -n flixstore
-        kubectl rollout status deployment/product-catalog -n flixstore
-        kubectl rollout status deployment/cart-service -n flixstore
-        kubectl rollout status deployment/payment-service -n flixstore
-        kubectl rollout status deployment/frontend -n flixstore
+        kubectl rollout status deployment/auth-service -n flixstore --timeout=180s
+        kubectl rollout status deployment/product-catalog -n flixstore --timeout=180s
+        kubectl rollout status deployment/cart-service -n flixstore --timeout=180s
+        kubectl rollout status deployment/payment-service -n flixstore --timeout=180s
+        kubectl rollout status deployment/frontend -n flixstore --timeout=180s
 
     - name: Verify deployment
       continue-on-error: true
