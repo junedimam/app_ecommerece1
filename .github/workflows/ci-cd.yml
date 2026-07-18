@@ -72,7 +72,6 @@ jobs:
   sonarcloud:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
-    if: ${{ secrets.SONAR_TOKEN != '' }}
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
