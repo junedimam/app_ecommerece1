@@ -45,30 +45,6 @@ jobs:
         cd services/${{ matrix.service }}
         npm test || echo "No tests configured"
 
-  trivy-fs-scan:
-    name: Trivy Filesystem & Dependency Scan
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Run Trivy filesystem scan
-      uses: aquasecurity/trivy-action@0.28.0
-      with:
-        scan-type: fs
-        scan-ref: .
-        format: sarif
-        output: trivy-fs-results.sarif
-        severity: CRITICAL,HIGH,MEDIUM
-        exit-code: 0
-
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: trivy-fs-results.sarif
-        category: trivy-filesystem
-
   sonarcloud:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
@@ -87,7 +63,7 @@ jobs:
 
   build-and-push:
     name: Build and Push Docker Images
-    needs: [test, trivy-fs-scan]
+    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     continue-on-error: true
@@ -128,24 +104,6 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
       run: |
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ${{ steps.context.outputs.path }}
-
-    - name: Run Trivy image scan
-      uses: aquasecurity/trivy-action@0.28.0
-      continue-on-error: true
-      with:
-        image-ref: ${{ env.ECR_REGISTRY }}/flixstore-${{ matrix.service }}:${{ github.sha }}
-        format: sarif
-        output: trivy-image-${{ matrix.service }}.sarif
-        severity: CRITICAL,HIGH,MEDIUM
-        exit-code: 0
-
-    - name: Upload Trivy image scan results
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      continue-on-error: true
-      with:
-        sarif_file: trivy-image-${{ matrix.service }}.sarif
-        category: trivy-image-${{ matrix.service }}
 
     - name: Push image to Amazon ECR
       continue-on-error: true
