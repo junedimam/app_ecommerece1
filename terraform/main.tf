@@ -129,13 +129,19 @@ resource "aws_ecr_repository" "payment_service" {
   force_delete         = true
 }
 
+resource "aws_ecr_repository" "frontend" {
+  name                 = "flixstore-frontend"
+  image_tag_mutability = "MUTABLE"
+  force_delete         = true
+}
+
 # EKS Cluster
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "19.20.0"
 
   cluster_name    = "flixstore-cluster"
-  cluster_version = "1.28"
+  cluster_version = "1.32"
 
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.private_subnets
@@ -147,9 +153,9 @@ module "eks" {
     flixstore_nodes = {
       desired_size = 2
       min_size     = 2
-      max_size     = 5
+      max_size     = 3
 
-      instance_types = ["t3.medium"]
+      instance_types = ["t3.small"]
 
       subnet_ids = module.vpc.private_subnets
     }
@@ -185,38 +191,55 @@ provider "helm" {
   }
 }
 
-# Outputs
-output "s3_bucket_name" {
-  value       = aws_s3_bucket.flixstore_images.bucket
-  description = "S3 bucket name for product images"
+# NGINX Ingress Controller - provisions an AWS Network Load Balancer
+# with a public DNS name that fronts the whole application.
+resource "helm_release" "ingress_nginx" {
+  name             = "ingress-nginx"
+  repository       = "https://kubernetes.github.io/ingress-nginx"
+  chart            = "ingress-nginx"
+  namespace        = "ingress-nginx"
+  create_namespace = true
+  version          = "4.11.3"
+
+  set {
+    name  = "controller.service.type"
+    value = "LoadBalancer"
+  }
+
+  set {
+    name  = "controller.service.annotations.service\\.beta\\.kubernetes\\.io/aws-load-balancer-type"
+    value = "nlb"
+  }
+
+  depends_on = [module.eks]
 }
 
-output "s3_bucket_arn" {
-  value       = aws_s3_bucket.flixstore_images.arn
-  description = "S3 bucket ARN for product images"
+# Prometheus - metrics collection for the cluster and the app services
+resource "helm_release" "prometheus" {
+  name             = "prometheus"
+  repository       = "https://prometheus-community.github.io/helm-charts"
+  chart            = "prometheus"
+  namespace        = "monitoring"
+  create_namespace = true
+  version          = "25.24.1"
+
+  values = [file("${path.module}/../monitoring/prometheus-values.yaml")]
+
+  depends_on = [module.eks]
 }
 
-output "eks_cluster_name" {
-  value       = module.eks.cluster_name
-  description = "EKS cluster name"
+# Grafana - dashboards on top of Prometheus, exposed via its own public LoadBalancer
+resource "helm_release" "grafana" {
+  name             = "grafana"
+  repository       = "https://grafana.github.io/helm-charts"
+  chart            = "grafana"
+  namespace        = "monitoring"
+  create_namespace = true
+  version          = "8.6.4"
+
+  values = [file("${path.module}/../monitoring/grafana-values.yaml")]
+
+  depends_on = [module.eks, helm_release.prometheus]
 }
 
-output "eks_cluster_endpoint" {
-  value       = module.eks.cluster_endpoint
-  description = "EKS cluster endpoint URL"
-}
-
-output "vpc_id" {
-  value       = module.vpc.vpc_id
-  description = "VPC ID"
-}
-
-output "public_subnets" {
-  value       = module.vpc.public_subnets
-  description = "Public subnet IDs"
-}
-
-output "private_subnets" {
-  value       = module.vpc.private_subnets
-  description = "Private subnet IDs"
-}
+# Outputs are defined in outputs.tf

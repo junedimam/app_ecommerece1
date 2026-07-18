@@ -1,8 +1,3 @@
-output "alb_dns_name" {
-  description = "DNS name of the ALB for accessing the application"
-  value       = "http://flixstore-cluster-${module.eks.cluster_id}.elb.${var.aws_region}.amazonaws.com"
-}
-
 output "s3_bucket_name" {
   description = "S3 bucket name for product images"
   value       = aws_s3_bucket.flixstore_images.bucket
@@ -18,6 +13,11 @@ output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
+output "eks_cluster_name" {
+  description = "EKS cluster name"
+  value       = module.eks.cluster_name
+}
+
 output "public_subnet_ids" {
   description = "Public subnet IDs"
   value       = module.vpc.public_subnets
@@ -29,6 +29,6 @@ output "private_subnet_ids" {
 }
 
 output "application_url" {
-  description = "Public URL to access the application"
-  value       = "http://flixstore-cluster-${module.eks.cluster_id}.elb.${var.aws_region}.amazonaws.com"
+  description = "Public URL to access the application (will be available after ingress is deployed)"
+  value       = "The application URL will be available after deploying the ingress controller and checking: kubectl get ingress -n flixstore"
 }

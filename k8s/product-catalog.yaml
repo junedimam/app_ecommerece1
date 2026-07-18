@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: product-catalog
-          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/flixstore-product-catalog:latest
+          image: 158670532325.dkr.ecr.us-east-1.amazonaws.com/flixstore-product-catalog:latest
           ports:
             - containerPort: 5002
           env:

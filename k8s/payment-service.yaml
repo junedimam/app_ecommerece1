@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
         - name: payment-service
-          image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/flixstore-payment-service:latest
+          image: 158670532325.dkr.ecr.us-east-1.amazonaws.com/flixstore-payment-service:latest
           ports:
             - containerPort: 5005
           env:

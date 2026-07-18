@@ -16,50 +16,91 @@ jobs:
   test:
     name: Test Services
     runs-on: ubuntu-latest
-    
+
     strategy:
       matrix:
         service: [auth-service, product-catalog, cart-service, payment-service]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
         node-version: '24'
-    
+
     - name: Install dependencies
       run: |
         cd services/${{ matrix.service }}
         npm install
-    
+
     - name: Run lint
       run: |
         cd services/${{ matrix.service }}
         npx eslint . --ext .js || true
-    
+
     - name: Run tests
       run: |
         cd services/${{ matrix.service }}
         npm test || echo "No tests configured"
 
-  build-and-push:
-    name: Build and Push Docker Images
-    needs: test
+  trivy-fs-scan:
+    name: Trivy Filesystem & Dependency Scan
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    continue-on-error: true
-    
-    strategy:
-      matrix:
-        service: [auth-service, product-catalog, cart-service, payment-service]
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
+    - name: Run Trivy filesystem scan
+      uses: aquasecurity/trivy-action@0.28.0
+      with:
+        scan-type: fs
+        scan-ref: .
+        format: sarif
+        output: trivy-fs-results.sarif
+        severity: CRITICAL,HIGH,MEDIUM
+        exit-code: 0
+
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trivy-fs-results.sarif
+        category: trivy-filesystem
+
+  sonarcloud:
+    name: SonarCloud Scan
+    runs-on: ubuntu-latest
+    if: ${{ secrets.SONAR_TOKEN != '' }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarqube-scan-action@v4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: https://sonarcloud.io
+
+  build-and-push:
+    name: Build and Push Docker Images
+    needs: [test, trivy-fs-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    continue-on-error: true
+
+    strategy:
+      matrix:
+        service: [auth-service, product-catalog, cart-service, payment-service, frontend]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
     - name: Configure AWS credentials
       continue-on-error: true
       uses: aws-actions/configure-aws-credentials@v4
@@ -67,20 +108,52 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
-    
+
     - name: Login to Amazon ECR
       continue-on-error: true
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Build, tag, and push image to Amazon ECR
+
+    - name: Set build context
+      id: context
+      run: |
+        if [ "${{ matrix.service }}" = "frontend" ]; then
+          echo "path=./frontend" >> "$GITHUB_OUTPUT"
+        else
+          echo "path=./services/${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Build image
+      env:
+        ECR_REPOSITORY: flixstore-${{ matrix.service }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest ${{ steps.context.outputs.path }}
+
+    - name: Run Trivy image scan
+      uses: aquasecurity/trivy-action@0.28.0
+      continue-on-error: true
+      with:
+        image-ref: ${{ env.ECR_REGISTRY }}/flixstore-${{ matrix.service }}:${{ github.sha }}
+        format: sarif
+        output: trivy-image-${{ matrix.service }}.sarif
+        severity: CRITICAL,HIGH,MEDIUM
+        exit-code: 0
+
+    - name: Upload Trivy image scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      continue-on-error: true
+      with:
+        sarif_file: trivy-image-${{ matrix.service }}.sarif
+        category: trivy-image-${{ matrix.service }}
+
+    - name: Push image to Amazon ECR
       continue-on-error: true
       env:
         ECR_REPOSITORY: flixstore-${{ matrix.service }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./services/${{ matrix.service }}
-        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
@@ -90,11 +163,11 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     continue-on-error: true
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
+
     - name: Configure AWS credentials
       continue-on-error: true
       uses: aws-actions/configure-aws-credentials@v4
@@ -102,32 +175,40 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
-    
+
     - name: Update kubeconfig
       continue-on-error: true
       run: |
         aws eks update-kubeconfig --region $AWS_REGION --name $EKS_CLUSTER_NAME
-    
+
     - name: Deploy to Kubernetes
       continue-on-error: true
       run: |
         kubectl apply -f k8s/namespace.yaml
         kubectl apply -f k8s/
-        
+
         # Update deployments with new image tags
         kubectl set image deployment/auth-service auth-service=$ECR_REGISTRY/flixstore-auth-service:${{ github.sha }} -n flixstore
         kubectl set image deployment/product-catalog product-catalog=$ECR_REGISTRY/flixstore-product-catalog:${{ github.sha }} -n flixstore
         kubectl set image deployment/cart-service cart-service=$ECR_REGISTRY/flixstore-cart-service:${{ github.sha }} -n flixstore
         kubectl set image deployment/payment-service payment-service=$ECR_REGISTRY/flixstore-payment-service:${{ github.sha }} -n flixstore
-        
+        kubectl set image deployment/frontend frontend=$ECR_REGISTRY/flixstore-frontend:${{ github.sha }} -n flixstore
+
         kubectl rollout status deployment/auth-service -n flixstore
         kubectl rollout status deployment/product-catalog -n flixstore
         kubectl rollout status deployment/cart-service -n flixstore
         kubectl rollout status deployment/payment-service -n flixstore
-    
+        kubectl rollout status deployment/frontend -n flixstore
+
     - name: Verify deployment
       continue-on-error: true
       run: |
         kubectl get pods -n flixstore
         kubectl get services -n flixstore
         kubectl get ingress -n flixstore
+
+    - name: Print public application URL
+      continue-on-error: true
+      run: |
+        echo "Public URL (ingress-nginx LoadBalancer):"
+        kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
