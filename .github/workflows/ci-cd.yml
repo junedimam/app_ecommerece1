@@ -63,7 +63,7 @@ jobs:
 
   build-and-push:
     name: Build and Push Docker Images
-    needs: test
+    needs: [test, sonarcloud]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
     continue-on-error: true
