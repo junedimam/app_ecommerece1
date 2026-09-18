@@ -14,10 +14,9 @@ A cloud-native microservices e-commerce platform deployed on AWS EKS with CI/CD,
        │            │  (:5002)     │     
        │            └──────────────┘     
        │            ┌──────────────┐     
-       ├───────────��│ Cart Service │────▶  MongoDB
+       ├───────────▶│ Cart Service │────▶  MongoDB
        │            │  (:5003)     │     
        │            └──────────────┘     
-       │            ┌──────────────┐     
        └───────────▶│Payment Service│────▶ MongoDB
                     │  (:5005)     │     
                     └──────────────┘     
