@@ -4,12 +4,42 @@ alertmanager:
   persistence:
     enabled: true
     size: 2Gi
+  extraSecretMounts:
+    - name: grafana-smtp
+      mountPath: /etc/alertmanager/secrets/grafana-smtp
+      secretName: grafana-smtp
+      readOnly: true
+  config:
+    global:
+      resolve_timeout: 5m
+      smtp_smarthost: smtp.gmail.com:587
+      smtp_from: junedimam994@gmail.com
+      smtp_auth_username: junedimam994@gmail.com
+      smtp_auth_password_file: /etc/alertmanager/secrets/grafana-smtp/smtp-password
+    route:
+      group_by: ['alertname', 'namespace']
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      receiver: flixstore-email
+      routes:
+        - matchers:
+            - severity="critical"
+          receiver: flixstore-email
+        - matchers:
+            - severity="warning"
+          receiver: flixstore-email
+    receivers:
+      - name: flixstore-email
+        email_configs:
+          - to: junedimam994@gmail.com
+            send_resolved: true
 
 server:
   persistentVolume:
     enabled: true
     size: 8Gi
-  
+
   resources:
     requests:
       memory: 256Mi
@@ -21,6 +51,52 @@ server:
   global:
     scrape_interval: 15s
     evaluation_interval: 15s
+
+  serverFiles:
+    alerting_rules.yml:
+      groups:
+        - name: flixstore-application
+          rules:
+            - alert: FlixStoreDeploymentReplicasUnavailable
+              expr: kube_deployment_status_replicas_unavailable{namespace="flixstore"} > 0
+              for: 5m
+              labels:
+                severity: critical
+              annotations:
+                summary: "FlixStore deployment has unavailable replicas"
+                description: "Deployment {{ $labels.deployment }} has unavailable replicas."
+            - alert: FlixStorePodNotReady
+              expr: kube_pod_status_ready{namespace="flixstore",condition="true"} == 0
+              for: 10m
+              labels:
+                severity: warning
+              annotations:
+                summary: "FlixStore pod is not ready"
+                description: "Pod {{ $labels.pod }} has not been ready for 10 minutes."
+            - alert: FlixStorePodCrashLooping
+              expr: max_over_time(kube_pod_container_status_waiting_reason{namespace="flixstore",reason="CrashLoopBackOff"}[5m]) >= 1
+              for: 5m
+              labels:
+                severity: critical
+              annotations:
+                summary: "FlixStore pod is crash looping"
+                description: "Pod {{ $labels.pod }} container {{ $labels.container }} is in CrashLoopBackOff."
+            - alert: FlixStoreContainerRestarting
+              expr: increase(kube_pod_container_status_restarts_total{namespace="flixstore"}[10m]) > 3
+              for: 5m
+              labels:
+                severity: warning
+              annotations:
+                summary: "FlixStore container is restarting"
+                description: "Container {{ $labels.container }} in pod {{ $labels.pod }} restarted more than 3 times in 10 minutes."
+            - alert: FlixStoreDeploymentUnavailable
+              expr: kube_deployment_status_replicas_available{namespace="flixstore"} == 0
+              for: 5m
+              labels:
+                severity: critical
+              annotations:
+                summary: "FlixStore deployment is unavailable"
+                description: "Deployment {{ $labels.deployment }} has no available replicas."
 
   extraScrapeConfigs: |
     - job_name: 'kubernetes-pods'
