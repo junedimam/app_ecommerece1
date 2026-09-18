@@ -9,6 +9,18 @@ persistence:
   enabled: true
   size: 5Gi
 
+grafana.ini:
+  smtp:
+    enabled: true
+    host: smtp.gmail.com:587
+    user: "your-email@gmail.com"
+    password: "APP_PASSWORD"
+    from_address: "your-email@gmail.com"
+    from_name: "FlixStore Monitoring"
+
+# Grafana will use this SMTP configuration for email alert notifications.
+# Replace the Gmail values with your actual SMTP credentials and app password.
+
 datasources:
   datasources.yaml:
     apiVersion: 1
