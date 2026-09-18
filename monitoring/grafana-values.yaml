@@ -13,13 +13,18 @@ grafana.ini:
   smtp:
     enabled: true
     host: smtp.gmail.com:587
-    user: "your-email@gmail.com"
-    password: "APP_PASSWORD"
-    from_address: "your-email@gmail.com"
+    from_address: "junedimam994@gmail.com"
     from_name: "FlixStore Monitoring"
 
-# Grafana will use this SMTP configuration for email alert notifications.
-# Replace the Gmail values with your actual SMTP credentials and app password.
+envValueFrom:
+  GF_SMTP_USER:
+    secretKeyRef:
+      name: grafana-smtp
+      key: smtp-user
+  GF_SMTP_PASSWORD:
+    secretKeyRef:
+      name: grafana-smtp
+      key: smtp-password
 
 datasources:
   datasources.yaml:
