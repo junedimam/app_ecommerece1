@@ -14,7 +14,7 @@ A cloud-native microservices e-commerce platform deployed on AWS EKS with CI/CD,
        │            │  (:5002)     │     
        │            └──────────────┘     
        │            ┌──────────────┐     
-       ├───────────▶│ Cart Service │────▶  MongoDB
+       ├───────────��│ Cart Service │────▶  MongoDB
        │            │  (:5003)     │     
        │            └──────────────┘     
        │            ┌──────────────┐     
@@ -52,9 +52,79 @@ Image Storage: AWS S3
 
 ## Monitoring
 
-- **Prometheus**: Metrics collection & alerting
-- **Grafana**: Dashboards with pre-configured panels
+- **Prometheus**: Metrics collection and alert rule evaluation
+- **Prometheus Alertmanager**: Routes Prometheus alerts to Gmail
+- **Grafana**: Dashboards and Grafana-managed alert notifications
 - Dashboards: Kubernetes Cluster, Pods, Node Exporter
+
+## Prometheus and Grafana Gmail Alerts
+
+This project supports Gmail notifications for both Prometheus Alertmanager and Grafana. The deployment reads the SMTP credentials from the Kubernetes secret `grafana-smtp`; credentials are never committed to this repository.
+
+### Gmail requirements
+
+1. Enable 2-Step Verification on the Gmail account used for notifications.
+2. Create a Gmail **App Password** for this deployment.
+3. Do not use the normal Gmail account password and do not add the app password to Git.
+
+### Configure and deploy email alerts
+
+Run the deployment script and enter the Gmail address and app password when prompted:
+
+```bash
+./deploy.sh
+```
+
+The script creates or updates the secret in the `monitoring` namespace:
+
+```bash
+kubectl create secret generic grafana-smtp \
+  --namespace monitoring \
+  --from-literal=smtp-user="your-alert-email@gmail.com" \
+  --from-literal=smtp-password="YOUR_GMAIL_APP_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Prometheus Alertmanager uses `smtp.gmail.com:587` and sends messages to the configured recipient. Grafana uses the same secret for its email contact point. The alert rules and notification policy are defined in:
+
+- `monitoring/prometheus-values.yaml`
+- `monitoring/grafana-values.yaml`
+- `monitoring/grafana-alerting.yaml`
+
+### Alert email examples
+
+**Critical alert — Prometheus Alertmanager**
+
+```text
+Subject: [CRITICAL] FlixStore pod is crash looping
+
+FlixStore monitoring detected a critical alert.
+Alert: FlixStorePodCrashLooping
+Severity: critical
+Namespace: flixstore
+Pod: <pod-name>
+Container: <container-name>
+Description: The container is in CrashLoopBackOff.
+Status: firing
+```
+
+**Warning alert — Grafana**
+
+```text
+Subject: [WARNING] FlixStore pod is not ready
+
+Grafana detected a warning condition in the FlixStore Kubernetes namespace.
+Alert: FlixStorePodNotReady
+Severity: warning
+Namespace: flixstore
+Pod: <pod-name>
+Description: The pod has not been ready for 10 minutes.
+Status: firing
+
+Check the Grafana dashboard and Kubernetes pod logs for details.
+```
+
+Alerts are grouped by `alertname` and `namespace`, wait 30 seconds before the first notification, repeat every 4 hours, and send a resolved notification when the condition clears. The configured rules include unavailable deployment replicas, pods not ready, CrashLoopBackOff, repeated container restarts, and unavailable deployments.
 
 ## Quick Start
 
