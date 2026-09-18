@@ -26,6 +26,12 @@ envValueFrom:
       name: grafana-smtp
       key: smtp-password
 
+extraConfigmapMounts:
+  - name: grafana-alerting
+    mountPath: /etc/grafana/provisioning/alerting
+    configMap: grafana-alerting
+    readOnly: true
+
 datasources:
   datasources.yaml:
     apiVersion: 1

@@ -48,6 +48,9 @@ kubectl create secret generic grafana-smtp \
   --from-literal=smtp-password="${SMTP_PASSWORD}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
+# Grafana contact points and notification policies are provisioned from Git.
+kubectl apply -f monitoring/grafana-alerting.yaml
+
 helm upgrade --install prometheus prometheus-community/prometheus \
   --namespace monitoring \
   -f monitoring/prometheus-values.yaml
@@ -76,5 +79,4 @@ echo ""
 echo "S3 Bucket for images:"
 echo "  Check terraform output: terraform output -state=terraform/terraform.tfstate s3_bucket_name"
 echo ""
-echo "After deployment, create an email contact point in Grafana:"
-echo "  Alerting -> Contact points -> New contact point -> Email"
+echo "Email alerts are configured for ${SMTP_USER} via Grafana and Prometheus Alertmanager."
