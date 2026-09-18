@@ -1,23 +1,30 @@
 {
   "name": "app_ecommerce",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "private": true,
+  "description": "FlixStore e-commerce platform",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "lint": "npm --prefix frontend run lint",
+    "test": "echo \"No automated tests configured yet.\""
   },
+  "workspaces": [
+    "frontend"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/junedimam/ecommerce_app.git"
+    "url": "git+https://github.com/junedimam/app_ecommerece1.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/junedimam/ecommerce_app/issues"
+    "url": "https://github.com/junedimam/app_ecommerece1/issues"
   },
-  "homepage": "https://github.com/junedimam/ecommerce_app#readme",
+  "homepage": "https://github.com/junedimam/app_ecommerece1#readme",
   "devDependencies": {
     "concurrently": "^10.0.3"
   }
