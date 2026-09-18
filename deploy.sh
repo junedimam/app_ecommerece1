@@ -31,6 +31,23 @@ helm repo add prometheus-community https://prometheus-community.github.io/helm-c
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 
+# Create/update the SMTP Secret without writing credentials to Git.
+# Use a Gmail App Password, not the normal account password.
+read -r -p "SMTP email [junedimam994@gmail.com]: " SMTP_USER
+SMTP_USER=${SMTP_USER:-junedimam994@gmail.com}
+read -r -s -p "SMTP app password: " SMTP_PASSWORD
+echo
+if [[ -z "${SMTP_PASSWORD}" ]]; then
+  echo -e "${RED}SMTP app password is required.${NC}" >&2
+  exit 1
+fi
+
+kubectl create secret generic grafana-smtp \
+  --namespace monitoring \
+  --from-literal=smtp-user="${SMTP_USER}" \
+  --from-literal=smtp-password="${SMTP_PASSWORD}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 helm upgrade --install prometheus prometheus-community/prometheus \
   --namespace monitoring \
   -f monitoring/prometheus-values.yaml
@@ -58,3 +75,6 @@ echo "  Password: admin123"
 echo ""
 echo "S3 Bucket for images:"
 echo "  Check terraform output: terraform output -state=terraform/terraform.tfstate s3_bucket_name"
+echo ""
+echo "After deployment, create an email contact point in Grafana:"
+echo "  Alerting -> Contact points -> New contact point -> Email"
