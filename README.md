@@ -4,22 +4,27 @@ A cloud-native microservices e-commerce platform deployed on AWS EKS with CI/CD,
 
 ## Architecture
 
-```
-┌─────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Frontend   │────▶│ Auth Service │────▶│   MongoDB    │
-│  (Next.js)   │     │  (:5001)     │     │  (Stateful)  │
-└──────┬──────┘     └──────────────┘     └──────────────┘
-       │            ┌──────────────┐     
-       ├───────────▶│Product Catalog│────▶  MongoDB
-       │            │  (:5002)     │     
-       │            └──────────────┘     
-       │            ┌──────────────┐     
-       ├───────────▶│ Cart Service │────▶  MongoDB
-       │            │  (:5003)     │     
-       │            └──────────────┘     
-       └───────────▶│Payment Service│────▶ MongoDB
-                    │  (:5005)     │     
-                    └──────────────┘     
+```text
++---------------+     +----------------+     +----------------+
+|   Frontend    |---->| Auth Service   |---->|   MongoDB      |
+|  (Next.js)    |     |  (:5001)       |     |  (Stateful)    |
++-------+-------+     +----------------+     +----------------+
+        |
+        |        +----------------+       +----------------+
+        +------->| Product Catalog|------>|   MongoDB      |
+                 |  (:5002)       |       |  (Stateful)    |
+                 +----------------+       +----------------+
+
+        |
+        |        +----------------+       +----------------+
+        +------->| Cart Service   |------>|   MongoDB      |
+                 |  (:5003)       |       |  (Stateful)    |
+                 +----------------+       +----------------+
+
+        |
+        +------->| Payment Service|------>|   MongoDB      |
+                  |  (:5005)       |       |  (Stateful)    |
+                  +----------------+       +----------------+
 
 Monitoring: Prometheus & Grafana
 Image Storage: AWS S3
@@ -58,7 +63,7 @@ Image Storage: AWS S3
 
 ## Prometheus and Grafana Gmail Alerts
 
-This project supports Gmail notifications for both Prometheus Alertmanager and Grafana. The deployment reads the SMTP credentials from the Kubernetes secret `grafana-smtp`; credentials are never committed to this repository.
+This project supports Gmail notifications for both Prometheus Alertmanager and Grafana. The deployment reads the SMTP credentials from the Kubernetes secret `grafana-smtp`; credentials are never checked into Git.
 
 ### Gmail requirements
 
@@ -123,7 +128,7 @@ Status: firing
 Check the Grafana dashboard and Kubernetes pod logs for details.
 ```
 
-Alerts are grouped by `alertname` and `namespace`, wait 30 seconds before the first notification, repeat every 4 hours, and send a resolved notification when the condition clears. The configured rules include unavailable deployment replicas, pods not ready, CrashLoopBackOff, repeated container restarts, and unavailable deployments.
+Alerts are grouped by `alertname` and `namespace`, wait 30 seconds before the first notification, repeat every 4 hours, and send a resolved notification when the condition clears. The configured notification rules and policies are included in the monitoring Helm values and alert definitions.
 
 ## Quick Start
 
