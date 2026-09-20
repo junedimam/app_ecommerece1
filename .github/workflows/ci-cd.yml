@@ -45,6 +45,12 @@ jobs:
       run: |
         cd services/${{ matrix.service }}
         npm test || echo "No tests configured"
+    
+    - name: Set up Java 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
 
   sonarcloud:
     name: SonarCloud Scan
