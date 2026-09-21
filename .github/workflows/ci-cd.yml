@@ -45,6 +45,7 @@ jobs:
       run: |
         cd services/${{ matrix.service }}
         npm test || echo "No tests configured"
+
   sonarcloud:
     name: SonarCloud Scan
     runs-on: ubuntu-latest
@@ -61,16 +62,11 @@ jobs:
         java-version: '21'
 
     - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v2
+      uses: SonarSource/sonarcloud-github-action@v3
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-  
-    - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@v3
-      env:
-       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   build-and-push:
     name: Build and Push Docker Images
     needs: [test, sonarcloud]
@@ -154,7 +150,6 @@ jobs:
         kubectl apply -f k8s/namespace.yaml
         kubectl apply -f k8s/
 
-        # Update deployments with new image tags
         kubectl set image deployment/auth-service auth-service=$ECR_REGISTRY/flixstore-auth-service:${{ github.sha }} -n flixstore
         kubectl set image deployment/product-catalog product-catalog=$ECR_REGISTRY/flixstore-product-catalog:${{ github.sha }} -n flixstore
         kubectl set image deployment/cart-service cart-service=$ECR_REGISTRY/flixstore-cart-service:${{ github.sha }} -n flixstore
