@@ -10,7 +10,7 @@ app.use(express.json());
 app.post('/api/products', async (req, res) => {
   try {
     const { name, description, price, imageUrl, stock } = req.body;
-    
+
     const newProduct = new Product({
       name,
       description,
@@ -30,6 +30,20 @@ app.post('/api/products', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const products = await Product.find();
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/products/search', async (req, res) => {
+  try {
+    const q = (req.query.q || '').toString().trim();
+    const query = q
+      ? { name: { $regex: q, $options: 'i' } }
+      : {};
+
+    const products = await Product.find(query);
     res.json(products);
   } catch (err) {
     res.status(500).json({ error: err.message });
